@@ -14,9 +14,21 @@ class MyGame extends FlameGame with HasKeyboardHandlerComponents, HasCollisionDe
   Future<void> onLoad() async {
     add(ScreenHitbox()); // HitBox en los bordes de la pantalla
     add(PlayerComponent());
-    add(MeteorComponent());
-    add(MeteorComponent());
+
     return super.onLoad();
+  }
+
+  double elapsedTime = 0.0;
+
+  @override
+  void update(double dt) {
+    elapsedTime += dt;
+    if (elapsedTime >= 1) {
+      add(MeteorComponent());
+      elapsedTime = 0.0;
+    }
+
+    super.update(dt);
   }
 }
 

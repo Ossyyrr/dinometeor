@@ -2,13 +2,12 @@ import 'dart:ui';
 
 import 'package:flame/collisions.dart';
 import 'package:flame/components.dart';
-import 'package:flame/events.dart';
 import 'package:flame/flame.dart';
 import 'package:flame/sprite.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
-class PlayerComponent extends SpriteAnimationComponent with Tappable, KeyboardHandler, CollisionCallbacks {
+class PlayerComponent extends SpriteAnimationComponent with KeyboardHandler, CollisionCallbacks {
   // Tappable para los eventos de toque
   // KeyboardHandler necesita el HasKeyboardHandlerComponents en el main
   late double screenWidth, screenHeight, centerX, centerY;
@@ -18,9 +17,20 @@ class PlayerComponent extends SpriteAnimationComponent with Tappable, KeyboardHa
   double playerSpeed = 500;
 
   int animationIndex = 0;
-  bool isRight = true;
 
-  late SpriteAnimation dinoDeadAnimation, dinoIdleAnimation, dinoJumpAnimation, dinoRunAnimation, dinoWalkAnimation;
+  bool inGround = true, isRight = true, collisionXRight = false, collisionXLeft = false;
+
+  double gravity = 5;
+  Vector2 velocity = Vector2(0, 0);
+
+  final double jumpForce = 200;
+
+  late SpriteAnimation dinoDeadAnimation,
+      dinoIdleAnimation,
+      dinoJumpAnimation,
+      dinoRunAnimation,
+      dinoWalkAnimation,
+      dinoWalkSlowAnimation;
 
   @override
   Future<void> onLoad() async {
@@ -29,13 +39,14 @@ class PlayerComponent extends SpriteAnimationComponent with Tappable, KeyboardHa
     final spriteImage = await Flame.images.load('dino.png');
     final spriteSheet = SpriteSheet(image: spriteImage, srcSize: Vector2(spriteSheetWidth, spriteSheetHeight));
 
-    dinoDeadAnimation = spriteSheet.createAnimationByLimit(xInit: 0, yInit: 0, step: 8, sizeX: 5, stepTime: 0.1);
-    dinoIdleAnimation = spriteSheet.createAnimationByLimit(xInit: 1, yInit: 2, step: 10, sizeX: 5, stepTime: 0.1);
-    dinoJumpAnimation = spriteSheet.createAnimationByLimit(xInit: 3, yInit: 0, step: 12, sizeX: 5, stepTime: 0.1);
-    dinoRunAnimation = spriteSheet.createAnimationByLimit(xInit: 5, yInit: 0, step: 8, sizeX: 5, stepTime: 0.1);
-    dinoWalkAnimation = spriteSheet.createAnimationByLimit(xInit: 6, yInit: 2, step: 10, sizeX: 5, stepTime: 0.1);
+    dinoIdleAnimation = spriteSheet.createAnimationByLimit(xInit: 1, yInit: 2, step: 10, sizeX: 5, stepTime: 0.08);
+    dinoWalkAnimation = spriteSheet.createAnimationByLimit(xInit: 6, yInit: 2, step: 10, sizeX: 5, stepTime: 0.08);
+    dinoWalkSlowAnimation = spriteSheet.createAnimationByLimit(xInit: 6, yInit: 2, step: 10, sizeX: 5, stepTime: 0.2);
+    dinoRunAnimation = spriteSheet.createAnimationByLimit(xInit: 5, yInit: 0, step: 8, sizeX: 5, stepTime: 0.08);
+    dinoJumpAnimation = spriteSheet.createAnimationByLimit(xInit: 3, yInit: 0, step: 12, sizeX: 5, stepTime: 0.08);
+    dinoDeadAnimation = spriteSheet.createAnimationByLimit(xInit: 0, yInit: 0, step: 8, sizeX: 5, stepTime: 0.08);
 
-    animation = dinoWalkAnimation;
+    animation = dinoIdleAnimation;
 
     screenWidth = MediaQueryData.fromView(window).size.width;
     screenHeight = MediaQueryData.fromView(window).size.height;
@@ -56,44 +67,6 @@ class PlayerComponent extends SpriteAnimationComponent with Tappable, KeyboardHa
   }
 
   @override
-  bool onTapDown(TapDownInfo info) {
-    print(info);
-    // animationIndex++;
-
-    // if (animationIndex > 4) animationIndex = 0;
-
-    // switch (animationIndex) {
-    //   case 0:
-    //     animation = dinoDeadAnimation;
-    //     break;
-    //   case 1:
-    //     animation = dinoIdleAnimation;
-    //     break;
-    //   case 2:
-    //     animation = dinoJumpAnimation;
-    //     break;
-    //   case 3:
-    //     animation = dinoRunAnimation;
-    //     break;
-    //   case 4:
-    //     animation = dinoWalkAnimation;
-    //     break;
-    //   default:
-    //     animation = dinoIdleAnimation;
-    // }
-
-    super.onTapDown(info);
-    return true;
-  }
-
-  // @override
-  // bool onTapUp(TapUpInfo info) {
-  //   print(info);
-  //   super.onTapUp(info);
-  //   return true;
-  // }
-
-  @override
   bool onKeyEvent(RawKeyEvent event, Set<LogicalKeyboardKey> keysPressed) {
     if (keysPressed.isEmpty) animation = dinoIdleAnimation;
 
@@ -106,7 +79,7 @@ class PlayerComponent extends SpriteAnimationComponent with Tappable, KeyboardHa
       }
       playerSpeed = 1500;
       animation = dinoRunAnimation;
-      posX++;
+      if (!collisionXRight) posX++;
     }
     // ANDAR DERECHA
     else if (keysPressed.contains(LogicalKeyboardKey.arrowRight) || keysPressed.contains(LogicalKeyboardKey.keyD)) {
@@ -116,19 +89,19 @@ class PlayerComponent extends SpriteAnimationComponent with Tappable, KeyboardHa
       }
       playerSpeed = 500;
       animation = dinoWalkAnimation;
-      posX++;
+      if (!collisionXRight) posX++;
     }
 
     // CORRER IZQUIERDA
     if ((keysPressed.contains(LogicalKeyboardKey.arrowLeft) || keysPressed.contains(LogicalKeyboardKey.keyA)) &&
         (keysPressed.contains(LogicalKeyboardKey.shiftLeft))) {
       if (isRight) {
-        playerSpeed = 1500;
         isRight = false;
         flipHorizontally();
       }
+      playerSpeed = 1500;
       animation = dinoRunAnimation;
-      posX--;
+      if (!collisionXLeft) posX--;
     }
     // ANDAR IZQUIERDA
     else if (keysPressed.contains(LogicalKeyboardKey.arrowLeft) || keysPressed.contains(LogicalKeyboardKey.keyA)) {
@@ -138,21 +111,15 @@ class PlayerComponent extends SpriteAnimationComponent with Tappable, KeyboardHa
       }
       playerSpeed = 500;
       animation = dinoWalkAnimation;
-      posX--;
+      if (!collisionXLeft) posX--;
     }
 
-    // ANDAR ARRIBA
-    if (keysPressed.contains(LogicalKeyboardKey.arrowUp) || keysPressed.contains(LogicalKeyboardKey.keyW)) {
-      animation = dinoWalkAnimation;
-      playerSpeed = 500;
-      posY--;
-    }
-
-    // ANDAR ABAJO
-    if (keysPressed.contains(LogicalKeyboardKey.arrowDown) || keysPressed.contains(LogicalKeyboardKey.keyS)) {
-      animation = dinoWalkAnimation;
-      playerSpeed = 500;
-      posY++;
+    // SALTAR ARRIBA
+    if ((keysPressed.contains(LogicalKeyboardKey.arrowUp) || keysPressed.contains(LogicalKeyboardKey.keyW)) &&
+        inGround) {
+      animation = dinoJumpAnimation;
+      velocity.y = -jumpForce;
+      position.y -= 15;
     }
 
     return true;
@@ -166,12 +133,38 @@ class PlayerComponent extends SpriteAnimationComponent with Tappable, KeyboardHa
     posX = 0;
     posY = 0;
 
+    if (position.y < screenHeight - size[1] / 2) {
+      inGround = false;
+      velocity.y += gravity;
+      position.y += velocity.y * dt;
+    } else {
+      inGround = true;
+    }
+
     super.update(dt);
   }
 
   @override
   void onCollision(Set<Vector2> intersectionPoints, PositionComponent other) {
-    print('COLLISION DINO');
+    if (other is ScreenHitbox) {
+      if (intersectionPoints.first[1] <= 0) {
+        // top
+      } else if (intersectionPoints.first[1] >= screenHeight) {
+        // bottom
+      } else if (intersectionPoints.first[0] <= 0) {
+        // lefta
+        collisionXLeft = true;
+      } else if (intersectionPoints.first[0] >= screenWidth) {
+        // right
+        collisionXRight = true;
+      }
+    }
+  }
+
+  @override
+  void onCollisionEnd(PositionComponent other) {
+    collisionXLeft = collisionXRight = false;
+    super.onCollisionEnd(other);
   }
 }
 
