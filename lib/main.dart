@@ -16,20 +16,16 @@ class MyGame extends FlameGame with HasKeyboardHandlerComponents, HasCollisionDe
 
   @override
   Future<void> onLoad() async {
-    cameraComponent = CameraComponent(world: world);
-    addAll([cameraComponent, world]);
-
     var background = BackgroundImageComponent();
 
-    world.add(background);
+    add(background);
 
     // Future
     background.loaded.then((value) {
       print(background.size);
       var player = PlayerComponent(mapSize: background.size);
-      world.add(player);
-      cameraComponent.viewport.add(background);
-      cameraComponent.follow(player);
+      add(player);
+      camera.followComponent(player, worldBounds: Rect.fromLTRB(0, 0, background.size.x, background.size.y));
     });
 
     add(ScreenHitbox()); // HitBox en los bordes de la pantalla
@@ -43,7 +39,7 @@ class MyGame extends FlameGame with HasKeyboardHandlerComponents, HasCollisionDe
   void update(double dt) {
     elapsedTime += dt;
     if (elapsedTime >= 1) {
-      world.add(MeteorComponent());
+      add(MeteorComponent());
       elapsedTime = 0.0;
     }
 
