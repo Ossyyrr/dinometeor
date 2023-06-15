@@ -1,5 +1,8 @@
 import 'dart:ui';
 
+import 'package:dinometeor/components/character.dart';
+import 'package:dinometeor/components/meteor_component.dart';
+import 'package:dinometeor/utils/crate_animation_by_limit.dart';
 import 'package:flame/collisions.dart';
 import 'package:flame/components.dart';
 import 'package:flame/flame.dart';
@@ -7,30 +10,8 @@ import 'package:flame/sprite.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
-class PlayerComponent extends SpriteAnimationComponent with KeyboardHandler, CollisionCallbacks {
-  // Tappable para los eventos de toque
-  // KeyboardHandler necesita el HasKeyboardHandlerComponents en el main
-  late double screenWidth, screenHeight, centerX, centerY;
-  final double spriteSheetWidth = 680, spriteSheetHeight = 472; // Valores de la imagen de un dino
-
-  int posX = 0, posY = 0;
-  double playerSpeed = 500;
-
-  int animationIndex = 0;
-
-  bool inGround = true, isRight = true, collisionXRight = false, collisionXLeft = false;
-
-  double gravity = 5;
-  Vector2 velocity = Vector2(0, 0);
-
-  final double jumpForce = 200;
-
-  late SpriteAnimation dinoDeadAnimation,
-      dinoIdleAnimation,
-      dinoJumpAnimation,
-      dinoRunAnimation,
-      dinoWalkAnimation,
-      dinoWalkSlowAnimation;
+class PlayerComponent extends Character {
+  int count = 0;
 
   @override
   Future<void> onLoad() async {
@@ -39,36 +20,36 @@ class PlayerComponent extends SpriteAnimationComponent with KeyboardHandler, Col
     final spriteImage = await Flame.images.load('dino.png');
     final spriteSheet = SpriteSheet(image: spriteImage, srcSize: Vector2(spriteSheetWidth, spriteSheetHeight));
 
-    dinoIdleAnimation = spriteSheet.createAnimationByLimit(xInit: 1, yInit: 2, step: 10, sizeX: 5, stepTime: 0.08);
-    dinoWalkAnimation = spriteSheet.createAnimationByLimit(xInit: 6, yInit: 2, step: 10, sizeX: 5, stepTime: 0.08);
-    dinoWalkSlowAnimation = spriteSheet.createAnimationByLimit(xInit: 6, yInit: 2, step: 10, sizeX: 5, stepTime: 0.2);
-    dinoRunAnimation = spriteSheet.createAnimationByLimit(xInit: 5, yInit: 0, step: 8, sizeX: 5, stepTime: 0.08);
-    dinoJumpAnimation = spriteSheet.createAnimationByLimit(xInit: 3, yInit: 0, step: 12, sizeX: 5, stepTime: 0.08);
-    dinoDeadAnimation = spriteSheet.createAnimationByLimit(xInit: 0, yInit: 0, step: 8, sizeX: 5, stepTime: 0.08);
+    idleAnimation = spriteSheet.createAnimationByLimit(xInit: 1, yInit: 2, step: 10, sizeX: 5, stepTime: 0.08);
+    walkAnimation = spriteSheet.createAnimationByLimit(xInit: 6, yInit: 2, step: 10, sizeX: 5, stepTime: 0.08);
+    walkSlowAnimation = spriteSheet.createAnimationByLimit(xInit: 6, yInit: 2, step: 10, sizeX: 5, stepTime: 0.2);
+    runAnimation = spriteSheet.createAnimationByLimit(xInit: 5, yInit: 0, step: 8, sizeX: 5, stepTime: 0.08);
+    jumpAnimation = spriteSheet.createAnimationByLimit(xInit: 3, yInit: 0, step: 12, sizeX: 5, stepTime: 0.08);
+    deadAnimation = spriteSheet.createAnimationByLimit(xInit: 0, yInit: 0, step: 8, sizeX: 5, stepTime: 0.08);
 
-    animation = dinoIdleAnimation;
+    animation = idleAnimation;
 
     screenWidth = MediaQueryData.fromView(window).size.width;
     screenHeight = MediaQueryData.fromView(window).size.height;
     centerX = (screenWidth / 2) - (spriteSheetWidth / 8);
     centerY = (screenHeight / 2) - (spriteSheetHeight / 8);
 
-    size = Vector2(spriteSheetWidth / 4, spriteSheetHeight / 4); // Tamaño dino
+    size = Vector2(spriteSheetWidth / 4, spriteSheetHeight / 4); // Tamaño
     position = Vector2(centerX, centerY);
 
     debugMode = true; // Permite ver los hitBox
 
-    RectangleHitbox dinoHitBox = RectangleHitbox(
+    RectangleHitbox hitBox = RectangleHitbox(
       size: Vector2(spriteSheetWidth / 8 - 8, spriteSheetHeight / 4 - 20),
       position: Vector2(10, 8),
     );
 
-    add(dinoHitBox); // agregarle un hitbox
+    add(hitBox); // agregarle un hitbox
   }
 
   @override
   bool onKeyEvent(RawKeyEvent event, Set<LogicalKeyboardKey> keysPressed) {
-    if (keysPressed.isEmpty) animation = dinoIdleAnimation;
+    if (keysPressed.isEmpty) animation = idleAnimation;
 
     // CORRER DERECHA
     if ((keysPressed.contains(LogicalKeyboardKey.arrowRight) || keysPressed.contains(LogicalKeyboardKey.keyD)) &&
@@ -78,7 +59,7 @@ class PlayerComponent extends SpriteAnimationComponent with KeyboardHandler, Col
         flipHorizontally();
       }
       playerSpeed = 1500;
-      animation = dinoRunAnimation;
+      animation = runAnimation;
       if (!collisionXRight) posX++;
     }
     // ANDAR DERECHA
@@ -88,7 +69,7 @@ class PlayerComponent extends SpriteAnimationComponent with KeyboardHandler, Col
         flipHorizontally();
       }
       playerSpeed = 500;
-      animation = dinoWalkAnimation;
+      animation = walkAnimation;
       if (!collisionXRight) posX++;
     }
 
@@ -100,7 +81,7 @@ class PlayerComponent extends SpriteAnimationComponent with KeyboardHandler, Col
         flipHorizontally();
       }
       playerSpeed = 1500;
-      animation = dinoRunAnimation;
+      animation = runAnimation;
       if (!collisionXLeft) posX--;
     }
     // ANDAR IZQUIERDA
@@ -110,14 +91,14 @@ class PlayerComponent extends SpriteAnimationComponent with KeyboardHandler, Col
         flipHorizontally();
       }
       playerSpeed = 500;
-      animation = dinoWalkAnimation;
+      animation = walkAnimation;
       if (!collisionXLeft) posX--;
     }
 
     // SALTAR ARRIBA
     if ((keysPressed.contains(LogicalKeyboardKey.arrowUp) || keysPressed.contains(LogicalKeyboardKey.keyW)) &&
         inGround) {
-      animation = dinoJumpAnimation;
+      animation = jumpAnimation;
       velocity.y = -jumpForce;
       position.y -= 15;
     }
@@ -158,6 +139,13 @@ class PlayerComponent extends SpriteAnimationComponent with KeyboardHandler, Col
         // right
         collisionXRight = true;
       }
+    } else if (other is MeteorComponent) {
+      count++;
+
+      other.debugMode = true;
+      other.hitBox.removeFromParent(); // una vez choca se elimina el hitBox para que no interactue más
+
+      print('Meteorito: $count');
     }
   }
 
@@ -165,33 +153,5 @@ class PlayerComponent extends SpriteAnimationComponent with KeyboardHandler, Col
   void onCollisionEnd(PositionComponent other) {
     collisionXLeft = collisionXRight = false;
     super.onCollisionEnd(other);
-  }
-}
-
-extension CreateAnimationByLimit on SpriteSheet {
-  SpriteAnimation createAnimationByLimit({
-    // Función para coger sprites de la imagen matriz de sprites
-    required int xInit,
-    required int yInit,
-    required int step,
-    required int sizeX,
-    required double stepTime,
-    bool loop = true,
-  }) {
-    final List<Sprite> spriteList = [];
-    int x = xInit;
-    int y = yInit - 1;
-
-    for (var i = 0; i < step; i++) {
-      if (y >= sizeX) {
-        y = 0;
-        x++;
-      } else {
-        y++;
-      }
-      spriteList.add(getSprite(x, y));
-      // print('x: $x, y: $y');
-    }
-    return SpriteAnimation.spriteList(spriteList, stepTime: stepTime, loop: loop);
   }
 }
