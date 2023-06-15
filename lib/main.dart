@@ -11,18 +11,25 @@ class MyGame extends FlameGame with HasKeyboardHandlerComponents, HasCollisionDe
   // HasTappables permite manejar los eventos de toque mediante componentes
   // HasKeyboardHandlerComponents manejar los eventos de teclado mediante componentes
 
+  final world = World();
+  late final CameraComponent cameraComponent;
+
   @override
   Future<void> onLoad() async {
+    cameraComponent = CameraComponent(world: world);
+    addAll([cameraComponent, world]);
+
     var background = BackgroundImageComponent();
 
-    add(background);
+    world.add(background);
 
     // Future
     background.loaded.then((value) {
       print(background.size);
       var player = PlayerComponent(mapSize: background.size);
-      add(player);
-      camera.followComponent(player, worldBounds: Rect.fromLTRB(0, 0, background.size.x, background.size.y));
+      world.add(player);
+      cameraComponent.viewport.add(background);
+      cameraComponent.follow(player);
     });
 
     add(ScreenHitbox()); // HitBox en los bordes de la pantalla
@@ -36,7 +43,7 @@ class MyGame extends FlameGame with HasKeyboardHandlerComponents, HasCollisionDe
   void update(double dt) {
     elapsedTime += dt;
     if (elapsedTime >= 1) {
-      add(MeteorComponent());
+      world.add(MeteorComponent());
       elapsedTime = 0.0;
     }
 
