@@ -1,3 +1,4 @@
+import 'package:dinometeor/components/background_image_component.dart';
 import 'package:dinometeor/components/meteor_component.dart';
 import 'package:dinometeor/components/player_component.dart';
 import 'package:flame/components.dart';
@@ -12,8 +13,19 @@ class MyGame extends FlameGame with HasKeyboardHandlerComponents, HasCollisionDe
 
   @override
   Future<void> onLoad() async {
+    var background = BackgroundImageComponent();
+
+    add(background);
+
+    // Future
+    background.loaded.then((value) {
+      print(background.size);
+      var player = PlayerComponent(mapSize: background.size);
+      add(player);
+      camera.followComponent(player, worldBounds: Rect.fromLTRB(0, 0, background.size.x, background.size.y));
+    });
+
     add(ScreenHitbox()); // HitBox en los bordes de la pantalla
-    add(PlayerComponent());
 
     return super.onLoad();
   }
@@ -29,6 +41,12 @@ class MyGame extends FlameGame with HasKeyboardHandlerComponents, HasCollisionDe
     }
 
     super.update(dt);
+  }
+
+  @override
+  Color backgroundColor() {
+    super.backgroundColor();
+    return Colors.purple;
   }
 }
 

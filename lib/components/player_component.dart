@@ -11,12 +11,17 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 class PlayerComponent extends Character {
+  Vector2 mapSize;
+
+  PlayerComponent({required this.mapSize}) : super() {
+    debugMode = true; // Permite ver los hitBox
+    anchor = const Anchor(0.33, 0.5);
+  }
+
   int count = 0;
 
   @override
   Future<void> onLoad() async {
-    anchor = const Anchor(0.33, 0.5);
-
     final spriteImage = await Flame.images.load('dino.png');
     final spriteSheet = SpriteSheet(image: spriteImage, srcSize: Vector2(spriteSheetWidth, spriteSheetHeight));
 
@@ -37,10 +42,8 @@ class PlayerComponent extends Character {
     size = Vector2(spriteSheetWidth / 4, spriteSheetHeight / 4); // Tamaño
     position = Vector2(centerX, centerY);
 
-    debugMode = true; // Permite ver los hitBox
-
     RectangleHitbox hitBox = RectangleHitbox(
-      size: Vector2(spriteSheetWidth / 8 - 8, spriteSheetHeight / 4 - 20),
+      size: Vector2(spriteSheetWidth / 8 - 8, spriteSheetHeight / 4),
       position: Vector2(10, 8),
     );
 
@@ -114,7 +117,7 @@ class PlayerComponent extends Character {
     posX = 0;
     posY = 0;
 
-    if (position.y < screenHeight - size[1] / 2) {
+    if (position.y < mapSize.y - size[1] / 2) {
       inGround = false;
       velocity.y += gravity;
       position.y += velocity.y * dt;
@@ -130,12 +133,12 @@ class PlayerComponent extends Character {
     if (other is ScreenHitbox) {
       if (intersectionPoints.first[1] <= 0) {
         // top
-      } else if (intersectionPoints.first[1] >= screenHeight) {
+      } else if (intersectionPoints.first[1] >= mapSize.y) {
         // bottom
       } else if (intersectionPoints.first[0] <= 0) {
-        // lefta
+        // left
         collisionXLeft = true;
-      } else if (intersectionPoints.first[0] >= screenWidth) {
+      } else if (intersectionPoints.first[0] >= mapSize.x) {
         // right
         collisionXRight = true;
       }
